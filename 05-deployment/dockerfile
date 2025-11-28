@@ -1,0 +1,33 @@
+FROM agrigorev/zoomcamp-model:2025
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Install system build tools and curl for rustup
+RUN apt-get update && apt-get install -y --no-install-recommends \
+	build-essential \
+	gcc \
+	g++ \
+	curl \
+	ca-certificates \
+	python3-dev && rm -rf /var/lib/apt/lists/*
+
+# Install rustup (non-interactive) so pydantic-core and other Rust extensions can build
+RUN curl https://sh.rustup.rs -sSf | sh -s -- -y
+ENV PATH="/root/.cargo/bin:${PATH}"
+RUN rustup default stable
+
+WORKDIR /app
+
+# Copy project files (pyproject.toml controls dependencies)
+COPY pyproject.toml pyproject.toml
+COPY serve.py serve.py
+COPY customer.py customer.py
+COPY pipeline_v1.bin pipeline_v1.bin
+
+# Upgrade pip tools and install the project (reads pyproject.toml)
+RUN pip install --upgrade pip setuptools wheel && \
+	pip install .
+
+EXPOSE 9696
+
+CMD ["uvicorn", "serve:app", "--host", "0.0.0.0", "--port", "9696"]
